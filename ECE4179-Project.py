@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data.dataloader as dataloader
-import torchvision.datasets as datasets
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 
 import torchvision
 import torchvision.transforms as tf
+import torchvision.datasets as datasets
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -49,7 +49,7 @@ from copy import deepcopy
             sample = self.transform(sample)
         return sample, labels'''
 
-        # Model definition
+# Model definition
 
 class Q2_CNN(nn.Module):
     def __init__(self, nodes):
@@ -187,9 +187,13 @@ transform = tf.Compose([tf.ToTensor(), tf.RandomErasing()])
 device = torch.device(0 if torch.cuda.is_available() else 'cpu')
 batch_size = 100 
 
-train_set = STLData(trn_val_tst=0, transform=transform) 
+'''train_set = STLData(trn_val_tst=0, transform=transform) 
 val_set = STLData(trn_val_tst=1, transform=transform) 
-test_set = STLData(trn_val_tst=2, transform=transform) 
+test_set = STLData(trn_val_tst=2, transform=transform)'''
+
+train_set = torchvision.datasets.CIFAR100(root='./data', train=True, download=True, transform=transform)
+test_set = torchvision.datasets.CIFAR100(root='./data', train=False, download=True, transform=transform)
+val_set = torchvision.datasets.CIFAR100(root='./data', train=False, download=True, transform=transform)
 
 trainloader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True)
 valloader = torch.utils.data.DataLoader(val_set, batch_size=batch_size, shuffle=False)
