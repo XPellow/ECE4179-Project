@@ -15,36 +15,39 @@ import time
 from IPython.display import clear_output
 from copy import deepcopy
 
-## Dataloader ##
+    ## Dataloader ##
 
-'''class STLData(Dataset):
-    def __init__(self,trn_val_tst = 0, transform=None):
-        data = np.load('hw3.npz')
-        if trn_val_tst == 0:
-            #trainloader
-            self.images = data['arr_0']
-            self.labels = data['arr_1']
-        elif trn_val_tst == 1:
-            #valloader
-            self.images = data['arr_2']
-            self.labels = data['arr_3']
-        else:
-            #testloader
-            self.images = data['arr_4']
-            self.labels = data['arr_5']
-            
-        self.images = np.float32(self.images)/1.0
-        self.transform = transform
+transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
 
-    def __len__(self):
-        return len(self.labels)
+trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=4, shuffle=True) #, num_workers=2)
 
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-   
-        sample = self.images[idx,:]
-        labels = self.labels[idx]
-        if self.transform:
-            sample = self.transform(sample)
-        return sample, labels'''
+testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+testloader = torch.utils.data.DataLoader(testset, batch_size=4, shuffle=False) #, num_workers=2)
+
+classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+
+    ## Model Definition ##
+
+class Model(nn.Module):
+    def __init__(self):
+        super(Model, self).__init__()
+        self.conv1 = nn.Conv2d(3, 6, 5)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.fc1 = nn.Linear(16 * 5 * 5, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
+
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, 16 * 5 * 5)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
