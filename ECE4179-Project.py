@@ -14,21 +14,14 @@ import matplotlib.pyplot as plt
 import time
 from IPython.display import clear_output
 from copy import deepcopy
+from random import random
 
-    ## Dataloader ##
+    ## Dataloader ## -- FIX
 
 transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
-
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=4, shuffle=True) #, num_workers=2)
-
-testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
-testloader = torch.utils.data.DataLoader(testset, batch_size=4, shuffle=False) #, num_workers=2)
-
-classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
     ## Model Definition ##
 
@@ -50,4 +43,21 @@ class Model(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+
+def GA_selection(data, fitness, n):
+    '''
+    Takes in an array of genomes (data) and an array of their associated (fitness) scores and outputs
+    a subset of (n) randomly selected parents using roulette wheel selection.
+    '''
+
+    selected_genomes = []
+
+    for i in range(n):
+        fitsum = np.cumsum(fitness)
+        fitsum /= fitsum[-1]
+        selected_genomes.append()
+        ind = np.max(selected_genomes>random())
+        selected_genomes.append(data[ind])
+
+    return np.array(selected_genomes)
 
