@@ -1,12 +1,13 @@
 from geneal.genetic_algorithms import BinaryGenAlgSolver
 from geneal.applications.fitness_functions.binary import fitness_functions_binary
+from neuralNet import evaluate_model, Model
+from random import random
+from math import floor
 
 class GenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
     def __init__(self, *args, **kwargs):
         BinaryGenAlgSolver.__init__(self, *args, **kwargs)
         ContinuousGenAlgSolver.__init__(self, *args, **kwargs)
-        self.initital_population = kwargs["initial_population"]
-        self.
 
     def fitness_function(self, chromosome):
         """
@@ -16,9 +17,9 @@ class GenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
         :param chromosome: chromosome of genes representing an individual
         :return: the fitness of the individual
         """
-        pass
+        return evaluate_model(chromosome)
 
-    def initialize_population(self):
+    def initialize_population(self): ## TODO ##
         """
         Initializes the population of the problem
 
@@ -29,7 +30,7 @@ class GenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
         """
         pass
 
-    def create_offspring(self, first_parent, sec_parent, crossover_pt, offspring_number):
+    def create_offspring(self, first_parent, sec_parent, crossover_pt, offspring_number): ## TODO ##
         """
         Creates an offspring from 2 parents. It uses the crossover point(s)
         to determine how to perform the crossover
@@ -41,9 +42,11 @@ class GenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
         Important if there's different logic to be applied to each case.
         :return: the resulting offspring.
         """
-        pass
+        first_kernels = first_parent.conv1.parameters()
+        second_kernels = sec_parent.conv1.parameters()
+        return Model(first_kernels[:crossover_pt], second_kernels[crossover_pt:])
 
-    def mutate_population(self, population, n_mutations):
+    def mutate_population(self, population, n_mutations): ## TODO ##
         """
         Mutates the population according to a given user defined rule.
 
@@ -52,12 +55,19 @@ class GenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
         calculated according to mutation_rate, but can be adjusted as needed inside this function
         :return: the mutated population
         """
-        pass
+        for i in range(n_mutations):
+            rand = random()
+            popind = floor(rand*len(population))
+            #layerind = floor(rand*3) # RGB in = 3 channels
+            #RGBind = 
+            #l1ind = 
+            #l2ind = 
+            #population[popind].conv1.parameters()[RGBind][l1ind][l2ind] += 
 
 solver = BinaryGenAlgSolver(
-    n_genes=3,
-    fitness_function=fitness_functions_binary(1), 
-    n_bits=1, # number of bits describing each gene (variable)
+    n_genes=64, # number of kernels in first layer
+    #fitness_function=fitness_functions_binary(1), 
+    n_bits=75, # number of bits describing each gene (variable) [number of weights in first layers kernels]
     pop_size=10, # population size (number of individuals)
     max_gen=500, # maximum number of generations
     mutation_rate=0.05, # mutation rate to apply to the population
