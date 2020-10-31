@@ -63,8 +63,9 @@ class SmallModel(nn.Module):
         super(SmallModel, self).__init__()
         self.nkernels = nkernels
         self.nclasses = nclasses
+        self.kernel_size = 5
 
-        self.conv1 = nn.Conv2d(3, nkernels, kernel_size=5, padding=2, bias=False)
+        self.conv1 = nn.Conv2d(3, nkernels, kernel_size=kernel_size, padding=2, bias=False)
         self.conv2 = nn.Conv2d(nkernels, 2*nkernels, kernel_size=5)
         self.pool1 = nn.MaxPool2d(kernel_size=2)
         self.conv3 = nn.Conv2d(2*nkernels, 2*nkernels, kernel_size=5)
@@ -89,8 +90,9 @@ class SmallerModel(nn.Module):
         super(SmallerModel, self).__init__()
         self.nkernels = nkernels
         self.nclasses = nclasses
+        self.kernel_size = 5
 
-        self.conv1 = nn.Conv2d(3, nkernels, kernel_size=5, padding=2, bias=False)
+        self.conv1 = nn.Conv2d(3, nkernels, kernel_size=kernel_size, padding=2, bias=False)
         self.pool = nn.MaxPool2d(kernel_size=2)
         self.conv2 = nn.Conv2d(nkernels, 2*nkernels, kernel_size=5)
         self.gap = nn.AvgPool2d(12)
@@ -113,8 +115,9 @@ class SmallestModel(nn.Module):
         super(SmallestModel, self).__init__()
         self.nkernels = nkernels
         self.nclasses = nclasses
+        self.kernel_size = 5
 
-        self.conv1 = nn.Conv2d(3, nkernels, kernel_size=5, padding=2, bias=False)
+        self.conv1 = nn.Conv2d(3, nkernels, kernel_size=kernel_size, padding=2, bias=False)
         self.pool = nn.MaxPool2d(kernel_size=2)
         self.conv2 = nn.Conv2d(nkernels, nkernels//2, kernel_size=5)
         self.gap = nn.AvgPool2d(12)

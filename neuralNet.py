@@ -41,4 +41,3 @@ def evaluate_model(model, device, loader):
     model_acc = epoch_acc / len(loader)
   
     return model_acc
-

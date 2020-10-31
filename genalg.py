@@ -3,16 +3,24 @@ from geneal.applications.fitness_functions.binary import fitness_functions_binar
 from neuralNet import evaluate_model, Model
 from random import random
 from math import floor
+import numpy as np
 
 class GenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
     def __init__(self, *args, **kwargs):
         BinaryGenAlgSolver.__init__(self, *args, **kwargs)
         ContinuousGenAlgSolver.__init__(self, *args, **kwargs)
-        self.kernel_width = kwargs.get("kernel_width", round(sqrt(self.n_genes)))
-        self.kernel_height = kwargs.get("kernel_height", round(sqrt(self.n_genes)))
+        self.Model = kwargs["model"]
+        self.num_channels = kwargs["num_channels"]
         self.train_set = kwargs["train_set"]
         self.test_set = kwargs["test_set"]
         self.device = kwargs["device"]
+        self.loss_function = kwargs["loss_function"]
+        self.optimizer = kwargs["optimizer"]
+
+        example_model = self.Model()
+        self.kernel_width = example_model.kernel_size
+        self.kernel_height = example_model.kernel_size
+        self.n_genes = example_model.nkernels # num of weights of first layer
 
     def fitness_function(self, chromosome):
         """
@@ -24,7 +32,7 @@ class GenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
         train_model(chromosome, device, train_set)
         return evaluate_model(chromosome, device, test_set)
 
-    def initialize_population(self): ## TODO ##
+    def initialize_population(self):
         """
         Initializes the population of the problem
         :param pop_size: number of individuals in the population
@@ -32,7 +40,13 @@ class GenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
         solver, it represents the number of genes times the number of bits per gene
         :return: a numpy array with a randomized initialized population
         """
-        pass
+
+        population = []
+        for i in range(pop_size):
+            population.append(self.Model())
+
+        return np.array(population)
+
 
     def create_offspring(self, first_parent, sec_parent, crossover_pt, offspring_number): ## TODO ##
         """
@@ -59,21 +73,23 @@ class GenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
         """
         for i in range(n_mutations):
             popind = floor(random()*len(population))
-            RGBind = floor(random()*3) # RGB in = 3 channels
+            channelind = floor(random()*self.num_channels)
             k_widthind = floor(random()*self.kernel_width)
-            k_heightind = floor(random()*self.kernel_width)
-            population[popind].conv1.parameters()[RGBind][k_widthind][k_heightind] += self.mutation_rate # double check ordering of width & height & that this works
+            k_heightind = floor(random()*self.kernel_height)
+            population[popind].conv1.parameters()[channelind][k_widthind][k_heightind] += self.mutation_rate # double check ordering of width & height & that this works
         return population
 
 solver = BinaryGenAlgSolver(
-    n_genes=64, # number of kernels in first layer
-    #fitness_function=fitness_functions_binary(1), 
-    n_bits=75, # number of bits describing each gene (variable) [number of weights in first layers kernels * channels in (3)]
-    pop_size=10, # population size (number of individuals)
+    pop_size=10, # population size (number of models)
     max_gen=500, # maximum number of generations
     mutation_rate=0.05, # mutation rate to apply to the population
     selection_rate=0.5, # percentage of the population to select for mating
     selection_strategy="roulette_wheel", # strategy to use for selection. see below for more details
-    #train_set=,
-    #test_set=,
-    #device=device
+    model=Model,
+    num_channels=3,
+    train_set=train_set,
+    test_set=test_set,
+    device=device,
+    loss_function=loss_function,
+    optimizer=optimizer
+)
