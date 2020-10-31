@@ -14,18 +14,25 @@ import matplotlib.pyplot as plt
 import time
 from IPython.display import clear_output
 from copy import deepcopy
-from random import random
 
-    ## Dataloader ## -- FIX
-
+    ## Dataloader ##
+    
 transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
+trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=4, shuffle=True) #, num_workers=2)
+
+testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True)
+testloader = torch.utils.data.DataLoader(testset, batch_size=4, shuffle=False) #, num_workers=2)
+
+classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+
     ## Model Definition ##
 
-class Model(nn.Module):
+class Model(nn.Module):`
     def __init__(self):
         super(Model, self).__init__()
         self.conv1 = nn.Conv2d(3, 32, 5, 2, 0) # In channels, out channels, kernel size, stride, padding
@@ -42,4 +49,8 @@ class Model(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
+<<<<<<< HEAD
         return x
+=======
+        return x
+>>>>>>> master
