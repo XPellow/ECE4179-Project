@@ -5,31 +5,36 @@ from random import random
 from math import floor
 import numpy as np
 
-class GenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
+class CNNGenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
     def __init__(self, *args, **kwargs):
+        # super funcs
         BinaryGenAlgSolver.__init__(self, *args, **kwargs)
         ContinuousGenAlgSolver.__init__(self, *args, **kwargs)
+
+        # get attributes
         self.Model = kwargs["model"]
         self.num_channels = kwargs["num_channels"]
         self.train_set = kwargs["train_set"]
         self.test_set = kwargs["test_set"]
         self.device = kwargs["device"]
         self.loss_function = kwargs["loss_function"]
-        self.optimizer = kwargs["optimizer"]
+        self.optimizerFunc = kwargs["optimizer"]
+        self.lr = kwargs["learning_rate"]
 
+        # get extrapolated attributes
         example_model = self.Model()
         self.kernel_width = example_model.kernel_size
         self.kernel_height = example_model.kernel_size
         self.n_genes = example_model.nkernels # num of weights of first layer
 
-    def fitness_function(self, chromosome):
+    def fitness_function(self, chromosome): ## TODO
         """
         Implements the logic that calculates the fitness
         measure of an individual.
         :param chromosome: chromosome of genes representing an individual
         :return: the fitness of the individual
         """
-        train_model(chromosome, device, train_set)
+        full_train(chromosome, train_loader, test_loader, loss_func, optimizer, device)
         return evaluate_model(chromosome, device, test_set)
 
     def initialize_population(self):
@@ -42,13 +47,16 @@ class GenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
         """
 
         population = []
+        self.optimizers = []
         for i in range(pop_size):
-            population.append(self.Model())
+            new_model = self.Model()
+            population.append(new_model)
+            self.optimizers.append(self.optimizer(new_model.parameters(), self.lr))
 
         return np.array(population)
 
 
-    def create_offspring(self, first_parent, sec_parent, crossover_pt, offspring_number): ## TODO ##
+    def create_offspring(self, first_parent, sec_parent, crossover_pt, offspring_number):
         """
         Creates an offspring from 2 parents. It uses the crossover point(s)
         to determine how to perform the crossover
@@ -59,11 +67,12 @@ class GenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
         Important if there's different logic to be applied to each case.
         :return: the resulting offspring.
         """
-        first_kernels = first_parent.conv1.parameters()
-        second_kernels = sec_parent.conv1.parameters()
-        return Model(first_kernels[:crossover_pt], second_kernels[crossover_pt:])
+        first_genome = first_parent.get_genome()
+        second_genome = sec_parent.get_genome()
+        model = Model(first_parent.nkernels, first_parent.nclasses)
+        return model.init_genome(first_genome[:crossover_pt], second_genome[crossover_pt:])
 
-    def mutate_population(self, population, n_mutations): ## TODO ##
+    def mutate_population(self, population, n_mutations): ## This is retarded lmao ##
         """
         Mutates the population according to a given user defined rule.
         :param population: the population at a given iteration
@@ -71,25 +80,13 @@ class GenAlgSolver(ContinuousGenAlgSolver, BinaryGenAlgSolver):
         calculated according to mutation_rate, but can be adjusted as needed inside this function
         :return: the mutated population
         """
-        for i in range(n_mutations):
+        for i in range(n_mutations): # Get a random weight in the kernel and increase it
             popind = floor(random()*len(population))
             channelind = floor(random()*self.num_channels)
             k_widthind = floor(random()*self.kernel_width)
             k_heightind = floor(random()*self.kernel_height)
-            population[popind].conv1.parameters()[channelind][k_widthind][k_heightind] += self.mutation_rate # double check ordering of width & height & that this works
+            mutated = population[popind]
+            mutated_genome = mutated.get_genome()
+            mutated_genome[channelind][k_widthind][k_heightind] += random()-0.5
+            mutated.init_genome(mutated_genome) # double check ordering of width & height & that this works
         return population
-
-solver = BinaryGenAlgSolver(
-    pop_size=10, # population size (number of models)
-    max_gen=500, # maximum number of generations
-    mutation_rate=0.05, # mutation rate to apply to the population
-    selection_rate=0.5, # percentage of the population to select for mating
-    selection_strategy="roulette_wheel", # strategy to use for selection. see below for more details
-    model=Model,
-    num_channels=3,
-    train_set=train_set,
-    test_set=test_set,
-    device=device,
-    loss_function=loss_function,
-    optimizer=optimizer
-)

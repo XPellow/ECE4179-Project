@@ -16,10 +16,52 @@ from IPython.display import clear_output
 from copy import deepcopy
 from random import random
 
+def train_epoch(model, loader, loss_func, optimizer, device, loss_logger=[]):
+    """
+    Trains a given model, returning the loss log, and it's overall prediction %
+    """
+    model.train()
+    correct = 0
+    total = 0
+    for i, (data, target) in enumerate(loader):
+        target = target.long()
+        output = model(data.to(device))
+        _, predicted = torch.max(output, 1)
+        correct += (predicted == target.to(device)).sum().item()
+        total += target.shape[0]
+        loss = loss_func(output, target.to(device))
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        loss_logger.append(loss.item())
+
+    return loss_logger, (correct / total) * 100.0
+
+
+def test_model(model, loader, loss_func, device, loss_logger=[]):
+    model.eval()
+    with torch.no_grad():
+        correct = 0
+        total = 0
+        for data, target in loader:
+            target = target.long()
+            output = model(data.to(device))
+            _, predicted = torch.max(output, 1)
+            correct += (predicted == target.to(device)).sum().item()
+            total += target.shape[0]
+
+            loss = loss_func(output, target.to(device))
+            loss_logger.append(loss.item())
+
+        return loss_logger, (correct / total) * 100.0
+
+
 def evaluate_model(model, device, loader):
-	"""
-	Returns the current accuracy of a given model.
-	"""
+    """
+    Returns the current accuracy of a given model.
+    """
     epoch_acc = 0
     
     model.eval()
@@ -41,3 +83,19 @@ def evaluate_model(model, device, loader):
     model_acc = epoch_acc / len(loader)
   
     return model_acc
+
+
+def full_train(model, train_loader, test_loader, loss_func, optimizer, device):
+    train_acc = []
+    test_acc = []
+    for i in range(nepochs):
+        #print("Epoch: [%d/%d]" % (i + 1, nepochs))
+
+        epoch_loss, acc = train_epoch(bleh_network, train_loader, loss_func, optimizer, device)
+        train_loss.append(sum(epoch_loss) / len(epoch_loss))
+        train_acc.append(acc)
+
+        _, acc = test_model(bleh_network, test_loader, loss_func, device)
+        test_loss.append(sum(epoch_loss) / len(epoch_loss))
+        test_acc.append(acc)
+    return train_loss, test_loss, train_acc, test_acc

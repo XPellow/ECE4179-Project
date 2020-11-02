@@ -2,3 +2,7 @@
 train_sort
 
 test_sort
+
+cifar-100-python/
+
+__pycache__/
