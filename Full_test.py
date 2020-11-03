@@ -130,6 +130,7 @@ if testing:
         num_channels=3,
         train_loaders=train_loaders,
         test_loaders=test_loaders,
+        kernel_size=5,
         device=device,
         loss_function=loss_func,
         optimizer=optimizer,
@@ -146,6 +147,7 @@ else:
         max_gen=20, # maximum number of generations
         mutation_rate=0.05, # mutation rate to apply to the population
         num_channels=3,
+        kernel_size=5,
         train_loaders=train_loaders,
         test_loaders=test_loaders,
         device=device,

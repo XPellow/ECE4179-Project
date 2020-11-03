@@ -1,9 +1,9 @@
-from geneal.genetic_algorithms import ContinuousGenAlgSolver
-from geneal.applications.fitness_functions.binary import fitness_functions_binary
+import torch
 from neuralNet import full_train
 from random import random
 from math import floor
 import numpy as np
+from datetime import datetime
 
 class CNNGenAlgSolver:
     def __init__(self, **kwargs):
@@ -32,12 +32,11 @@ class CNNGenAlgSolver:
         self.n_epochs = kwargs["n_epochs"]
         self.nkernels = kwargs["nkernels"]
         self.nclasses = kwargs["nclasses"]
+        self.kernel_size = kwargs["kernel_size"]
 
         # Get extrapolated attributes
-        example_model = self.Model(self.nkernels, self.nclasses)
-        self.kernel_width = example_model.kernel_size
-        self.kernel_height = example_model.kernel_size
-        self.n_genes = example_model.nkernels # num of weights of first layer
+        self.kernel_width = self.kernel_size
+        self.kernel_height = self.kernel_size
         self.nloaders = len(self.train_loaders)
 
         # Setup loggers
@@ -71,8 +70,7 @@ class CNNGenAlgSolver:
             test_loader=test_loader, 
             loss_func=self.loss_func, 
             optimizer=optimizer, 
-            device=self.device, 
-            freeze=True
+            device=self.device
         )
 
         # Logging data
@@ -119,6 +117,7 @@ class CNNGenAlgSolver:
         for i in range(self.pop_size):
             new_model = self.Model(self.nkernels, self.nclasses).to(self.device)
             new_genome = np.random.choice(genes, size=self.nkernels, replace=False)
+            new_genome = torch.stack(list(new_genome))
             new_model.init_genome(new_genome)
             population.append(new_model)
         
@@ -139,7 +138,7 @@ class CNNGenAlgSolver:
         '''
         genes = []
         for i in population:
-            for j in i.conv1.weight:
+            for j in i.get_genome():
                 genes.append(j)
 
         return genes
@@ -153,15 +152,25 @@ class CNNGenAlgSolver:
             print("Generation: {}/{}".format(self.gen, self.max_gen))
 
             # Find the normalzied fitness of each model
+            print("Starting fitness calc")
+            print(datetime.now())
             fitness = self.calculate_fitness(population)
             fitness /= sum(fitness) # Normalizes array
 
             if self.gen >= self.max_gen: break # Just get fitness of models & break at end
 
             # Get the genes of the best models & build a new population
+            #print("\nGetting fittest models")
+            #print(datetime.now())
             fittest_models = np.random.choice(population, size=self.pool_size, replace=False, p=fitness)
+            #print("\nLiquidating models")
+            #print(datetime.now())
             genes = self.liquidate(fittest_models)
+            #print("\nCreating offspring")
+            #print(datetime.now())
             population = self.create_offspring(genes)
+            #print("\nMutating population")
+            #print(datetime.now())
             population = self.mutate_population(population)
 
             self.gen += 1

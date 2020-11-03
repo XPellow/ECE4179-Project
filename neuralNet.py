@@ -22,10 +22,21 @@ class Model(nn.Module):
     KERNEL_SIZE = 5
 
     def __init__(self, nkernels, nclasses, n_mut1=0, n_mut2=0):
+        """
+        Creates small model with some number of kernels in the first convolutional layer, and some number of output
+        classes. Type 1 mutation refers to when a kernel is unfrozen and allowed to learn at a decreased rate, type 2
+        mutation refers to when a kernel is randomly initialized and then allowed to learn.
+        
+        :param nkernels: number of kernels in the first layer of the network
+        :param nclasses: number of classes output by the network
+        :param n_mut1: number of kernels that undergo type 1 mutation
+        :param n_mut2: number of kernels that undergo type 2 mutation
+        """
         super(Model, self).__init__()
         self.nkernels = nkernels
         self.nclasses = nclasses
         self.mut1len = n_mut1  # number of kernels that are given type 1 mutation
+        self.mut2len = n_mut2  # number of kernels that are given type 2 mutation
         self.ingenlen = nkernels-n_mut2  # Length of genome input
 
         # Specify genome layer
@@ -50,9 +61,11 @@ class Model(nn.Module):
         with torch.no_grad():
             if data.shape[0] > self.ingenlen:
                 raise Exception("Don't try to give the model downs syndrome.")
-            else:
+            elif self.mut1len:
                 self.genome_mut1.weight = torch.nn.Parameter(data[:self.mut1len])
                 self.genome_nomut.weight = torch.nn.Parameter(data[self.mut1len:])
+            else:
+                self.genome_nomut.weight = torch.nn.Parameter(data)
 
     def gen_optimizer(self, lr, mut_lr1, mut_lr2):
         """
@@ -66,16 +79,23 @@ class Model(nn.Module):
         """
 
         self.genome_nomut.weight.requires_grad = False
-        other_params = [self.conv2.weight, self.conv2.bias, self.fc.weight, self.fc.bias]
-        return optim.Adam([{'params': self.genome_mut1.weight, 'lr': mut_lr1},
-                           {'params': self.genome_mut2.weight, 'lr': mut_lr2},
-                           {'params': other_params}], lr=lr)
+        optimdata = [{'params': [self.conv2.weight, self.conv2.bias, self.fc.weight, self.fc.bias]}]
+        if self.mut1len: optimdata.append({'params': self.genome_mut1.weight, 'lr': mut_lr1})
+        if self.mut2len: optimdata.append({'params': self.genome_mut2.weight, 'lr': mut_lr2})
+        return optim.Adam(optimdata, lr=lr)
 
     def get_genome(self):
-        return torch.cat((self.genome_mut1.weight.data, self.genome_mut2.weight.data, self.genome_nomut.weight.data), 0)
+
+        weights = [self.genome_nomut.weight.data]
+        if self.mut1len: weights.append(self.genome_mut1.weight.data)
+        if self.mut2len: weights.append(self.genome_mut2.weight.data)
+        return torch.cat(weights, 0)
 
     def forward(self, x):
-        x = F.relu(torch.cat((self.genome_mut1(x), self.genome_mut2(x), self.genome_nomut(x)), 1))
+        layer1comp = [self.genome_nomut(x)]
+        if self.mut1len: layer1comp.append(self.genome_mut1(x))
+        if self.mut2len: layer1comp.append(self.genome_mut2(x))
+        x = F.relu(torch.cat(layer1comp, 1))
         x = self.pool(x)
         x = F.relu(self.conv2(x))
         x = torch.squeeze(self.gap(x))
