@@ -30,11 +30,15 @@ class Model(nn.Module):
         self.gap = nn.AvgPool2d(12)
         self.fc = nn.Linear(nkernels//2, nclasses)
 
+
     def init_genome(self, data):
+        data = torch.stack(list(data))
         self.conv1.weight = torch.nn.Parameter(data)
+
 
     def get_genome(self):
         return self.conv1.weight.data
+
 
     def forward(self, x):
         x = F.relu(self.conv1(x))

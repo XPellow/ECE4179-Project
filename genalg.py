@@ -5,21 +5,22 @@ from random import random
 from math import floor
 import numpy as np
 
-class CNNGenAlgSolver(ContinuousGenAlgSolver):
-    def __init__(self, *args, **kwargs):
+class CNNGenAlgSolver:
+    def __init__(self, **kwargs):
         # Super funcs
-        ContinuousGenAlgSolver.__init__(self,
+        '''ContinuousGenAlgSolver.__init__(self,
             pop_size=kwargs["pop_size"],
             max_gen=kwargs["max_gen"],
             mutation_rate=kwargs["mutation_rate"],
             selection_rate=kwargs["selection_rate"],
             selection_strategy=kwargs["selection_strategy"],
             n_genes=1 # FIX 
-        )
+        )'''
 
         # Get attributes
-        #self.pop_size = kwargs["pop_size"]
         self.Model = kwargs["model"]
+        self.pop_size = kwargs["pop_size"]
+        self.pool_size = kwargs["pool_size"]
         self.num_channels = kwargs["num_channels"]
         self.train_loaders = kwargs["train_loaders"]
         self.test_loaders = kwargs["test_loaders"]
@@ -44,10 +45,10 @@ class CNNGenAlgSolver(ContinuousGenAlgSolver):
         #   e.g train_losses = 
         #   [[gen1-model1.train_losses, ... , gen1-modeln], ..., 
         #    [genm-model1, ..., genm-modeln]]
-        self.train_losses = [[] for i in range(self.max_gen)]
-        self.test_losses = [[] for i in range(self.max_gen)]
-        self.train_accs = [[] for i in range(self.max_gen)]
-        self.test_accs = [[] for i in range(self.max_gen)]
+        self.train_losses = [[] for i in range(self.max_gen+1)]
+        self.test_losses = [[] for i in range(self.max_gen+1)]
+        self.train_accs = [[] for i in range(self.max_gen+1)]
+        self.test_accs = [[] for i in range(self.max_gen+1)]
 
 
     def fitness_function(self, chromosome):
@@ -75,13 +76,21 @@ class CNNGenAlgSolver(ContinuousGenAlgSolver):
         )
 
         # Logging data
-        gen = chromosome.generation
-        self.train_losses[gen].append(train_loss)
-        self.test_losses[gen].append(test_loss)
-        self.train_accs[gen].append(train_acc)
-        self.test_accs[gen].append(test_acc)
+        self.train_losses[self.gen].append(train_loss)
+        self.test_losses[self.gen].append(test_loss)
+        self.train_accs[self.gen].append(train_acc)
+        self.test_accs[self.gen].append(test_acc)
 
         return test_acc[-1] # Returns the latest accuracy of the current model
+
+
+    def calculate_fitness(self, population):
+        """
+        Calculates the fitness of the population
+        :param population: population state at a given iteration
+        :return: the fitness of the current population
+        """
+        return np.array(list(map(self.fitness_function, population)))
 
 
     def initialize_population(self):
@@ -96,50 +105,63 @@ class CNNGenAlgSolver(ContinuousGenAlgSolver):
         population = []
         for i in range(self.pop_size):
             new_model = self.Model(self.nkernels, self.nclasses).to(self.device)
-            new_model.generation = 0
             population.append(new_model)
 
         return np.array(population)
 
 
-    def create_offspring(self, first_parent, sec_parent, crossover_pt, offspring_number):
+    def create_offspring(self, genes):
         """
-        Creates an offspring from 2 parents. It uses the crossover point(s) ..
-        to determine how to perform the crossover
-        :param first_parent: first parent's chromosome
-        :param sec_parent: second parent's chromosome
-        :param crossover_pt: point(s) at which to perform the crossover
-        :param offspring_number: whether it's the first or second offspring from a pair of parents.
-        Important if there's different logic to be applied to each case.
-        :return: the resulting offspring.
+        Creates a new population given a set of genes
         """
-        first_genome = first_parent.get_genome()
-        second_genome = sec_parent.get_genome()
 
-        model = Model(self.nkernels, self.nclasses).to(self.device)
-        model.generation = max(first_parent.generation, sec_parent.generation) + 1
-        model.init_genome(first_genome[:crossover_pt], second_genome[crossover_pt:])
+        population = []
+        for i in range(self.pop_size):
+            new_model = self.Model(self.nkernels, self.nclasses).to(self.device)
+            new_genome = np.random.choice(genes, size=self.nkernels, replace=False)
+            new_model.init_genome(new_genome)
+            population.append(new_model)
         
-        return model
-
-
-    def mutate_population(self, population, n_mutations): ## This is retarded lmao ##
-        """
-        Mutates the population according to a given user defined rule.
-        :param population: the population at a given iteration
-        :param n_mutations: number of mutations to be performed. This number is 
-        calculated according to mutation_rate, but can be adjusted as needed inside this function
-        :return: the mutated population
-        """
-        '''
-        for i in range(n_mutations): # Get a random weight in the kernel and increase it
-                                    popind = floor(random()*len(population))
-                                    channelind = floor(random()*self.num_channels)
-                                    k_widthind = floor(random()*self.kernel_width)
-                                    k_heightind = floor(random()*self.kernel_height)
-                                    mutated = population[popind]
-                                    mutated_genome = mutated.get_genome()
-                                    mutated_genome[channelind][k_widthind][k_heightind] += random()-0.5
-                                    mutated.init_genome(mutated_genome) # double check ordering of width & height & that this works
-        '''
         return population
+
+
+    def mutate_population(self, population):
+        """
+        just in case we decide to make mutations
+        """
+        return population
+
+
+    def liquidate(self, population):
+        '''
+        Given some population (usually fitness tested), returns the set of all of its 
+        genes.
+        '''
+        genes = []
+        for i in population:
+            for j in i.conv1.weight:
+                genes.append(j)
+
+        return genes
+
+    def solve(self):
+        population = self.initialize_population()
+
+        self.gen = 0
+        while True:
+            # Keep track of current generation
+            print("Generation: {}/{}".format(self.gen, self.max_gen))
+
+            # Find the normalzied fitness of each model
+            fitness = self.calculate_fitness(population)
+            fitness /= sum(fitness) # Normalizes array
+
+            if self.gen >= self.max_gen: break # Just get fitness of models & break at end
+
+            # Get the genes of the best models & build a new population
+            fittest_models = np.random.choice(population, size=self.pool_size, replace=False, p=fitness)
+            genes = self.liquidate(fittest_models)
+            population = self.create_offspring(genes)
+            population = self.mutate_population(population)
+
+            self.gen += 1

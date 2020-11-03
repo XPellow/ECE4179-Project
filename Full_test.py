@@ -94,7 +94,7 @@ train_data = unpickle('cifar-100-python/train_sort')
 test_data = unpickle('cifar-100-python/test_sort')
 
 # Setting up multi-class loaders
-nclasses = 4
+nclasses = 2 # 4
 nloaders = 50
 train_loaders = []
 test_loaders = []
@@ -118,25 +118,44 @@ loss_func = nn.CrossEntropyLoss()
 lr = 1e-3
 n_epochs = 30
 optimizer = optim.Adam
+testing = True
 
-solver = CNNGenAlgSolver(
-    pop_size=10, # population size (number of models) (50)
-    max_gen=10, # maximum number of generations (500)
-    mutation_rate=0.05, # mutation rate to apply to the population
-    selection_rate=0.5, # percentage of the population to select for mating
-    selection_strategy="roulette_wheel", # strategy to use for selection. see below for more details
-    model=Model,
-    num_channels=3,
-    train_loaders=train_loaders,
-    test_loaders=test_loaders,
-    device=device,
-    loss_function=loss_func,
-    optimizer=optimizer,
-    learning_rate=lr,
-    n_epochs=n_epochs,
-    nkernels=64,
-    nclasses=4
-)
+if testing:
+    solver = CNNGenAlgSolver(
+        model=Model,
+        pop_size=4, # population size (number of models)
+        pool_size=2, # num of models chosen when creating the next generation
+        max_gen=3, # maximum number of generations
+        mutation_rate=0.05, # mutation rate to apply to the population
+        num_channels=3,
+        train_loaders=train_loaders,
+        test_loaders=test_loaders,
+        device=device,
+        loss_function=loss_func,
+        optimizer=optimizer,
+        learning_rate=lr,
+        n_epochs=n_epochs,
+        nkernels=16,
+        nclasses=nclasses
+    )
+else:
+    solver = CNNGenAlgSolver(
+        model=Model,
+        pop_size=20, # population size (number of models)
+        pool_size=10, # num of models chosen when creating the next generation
+        max_gen=20, # maximum number of generations
+        mutation_rate=0.05, # mutation rate to apply to the population
+        num_channels=3,
+        train_loaders=train_loaders,
+        test_loaders=test_loaders,
+        device=device,
+        loss_function=loss_func,
+        optimizer=optimizer,
+        learning_rate=lr,
+        n_epochs=n_epochs,
+        nkernels=64,
+        nclasses=nclasses
+    )
 
 solver.solve()
 
@@ -147,4 +166,4 @@ ave_test_losses = np.average(solver.test_losses, axis=1)
 ave_train_accs = np.average(solver.train_accs, axis=1)
 ave_test_accs = np.average(solver.test_accs, axis=1)
 
-plot_all(ave_train_losses, ave_test_losses, ave_train_accs, ave_test_accs)
+#plot_all(ave_train_losses, ave_test_losses, ave_train_accs, ave_test_accs)
