@@ -18,12 +18,11 @@ import time
 from copy import deepcopy
 
 # own libraries
-from neuralNet import train_epoch, test_model, evaluate_model
+from neuralNet import train_epoch, test_model, evaluate_model, Model
 from genalg import CNNGenAlgSolver
 
 GPU_indx = 0
 device = torch.device(GPU_indx if torch.cuda.is_available() else 'cpu')
-
 
 def unpickle(file):
     with open(file, 'rb') as fo:
@@ -88,76 +87,64 @@ class CIFAR100Multiclass(Dataset):
         return sample, label
 
 
-class SmallestModel(nn.Module):
-    def __init__(self, nkernels, nclasses):
-        super(SmallestModel, self).__init__()
-        self.nkernels = nkernels
-        self.nclasses = nclasses
-        self.kernel_size = 5
-
-        self.conv1 = nn.Conv2d(3, nkernels, kernel_size=self.kernel_size, padding=2, bias=False)
-        self.pool = nn.MaxPool2d(kernel_size=2)
-        self.conv2 = nn.Conv2d(nkernels, nkernels//2, kernel_size=5)
-        self.gap = nn.AvgPool2d(12)
-        self.fc = nn.Linear(nkernels//2, nclasses)
-
-    def init_genome(self, data):
-        self.conv1.weight = torch.nn.Parameter(data)
-
-    def get_genome(self):
-        return self.conv1.weight.data
-
-    def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = self.pool(x)
-        x = F.relu(self.conv2(x))
-        x = torch.squeeze(self.gap(x))
-        x = self.fc(x)
-        return x
-
-#   Rough work
-
-# Testing code, delete later
-
 # Loading data
 metadata = unpickle('cifar-100-python/meta')
 legend = metadata[b'fine_label_names']
 train_data = unpickle('cifar-100-python/train_sort')
 test_data = unpickle('cifar-100-python/test_sort')
 
-the_nclasses = 4
-the_classes = np.array(random.sample(range(100), the_nclasses))
+# Setting up multi-class loaders
+nclasses = 4
+nloaders = 50
+train_loaders = []
+test_loaders = []
 
-train_set = CIFAR100Multiclass(train_data[:, :400], classes=the_classes)
-test_set = CIFAR100Multiclass(test_data, classes=the_classes)
-train_loader = torch.utils.data.DataLoader(train_set, batch_size=50)
-test_loader = torch.utils.data.DataLoader(test_set, batch_size=100)
+for i in range(nloaders):
+    new_class_indicies = np.array(random.sample(range(100), nclasses))
+    new_train_set = CIFAR100Multiclass(train_data[:, :400], classes=new_class_indicies)
+    new_test_set = CIFAR100Multiclass(test_data, classes=new_class_indicies)
+    new_train_loader = torch.utils.data.DataLoader(new_train_set, batch_size=50)
+    new_test_loader = torch.utils.data.DataLoader(new_test_set, batch_size=100)
 
+    train_loaders.append(new_train_loader)
+    test_loaders.append(new_test_loader)
 
+train_loaders = np.array(train_loaders)
+test_loaders = np.array(test_loaders)
 
 # Initializing network parameters
 
 loss_func = nn.CrossEntropyLoss()
 lr = 1e-3
-nepochs = 30
-optimizer = optim.Adam(bleh_network.parameters(), lr)
+n_epochs = 30
+optimizer = optim.Adam
 
 solver = CNNGenAlgSolver(
-    pop_size=10, # population size (number of models)
-    max_gen=500, # maximum number of generations
+    pop_size=10, # population size (number of models) (50)
+    max_gen=10, # maximum number of generations (500)
     mutation_rate=0.05, # mutation rate to apply to the population
     selection_rate=0.5, # percentage of the population to select for mating
     selection_strategy="roulette_wheel", # strategy to use for selection. see below for more details
     model=Model,
     num_channels=3,
-    train_set=train_set,
-    test_set=test_set,
+    train_loaders=train_loaders,
+    test_loaders=test_loaders,
     device=device,
-    loss_function=loss_function,
-    optimizer=optim.Adam,
-    learning_rate=lr
+    loss_function=loss_func,
+    optimizer=optimizer,
+    learning_rate=lr,
+    n_epochs=n_epochs,
+    nkernels=64,
+    nclasses=4
 )
 
 solver.solve()
 
-# end result is in solver.population
+# Final population & all loggers in solver.xxx
+
+ave_train_losses = np.average(solver.train_losses, axis=1)
+ave_test_losses = np.average(solver.test_losses, axis=1)
+ave_train_accs = np.average(solver.train_accs, axis=1)
+ave_test_accs = np.average(solver.test_accs, axis=1)
+
+plot_all(ave_train_losses, ave_test_losses, ave_train_accs, ave_test_accs)
