@@ -17,31 +17,65 @@ from copy import deepcopy
 from random import random
 
 
+
 class Model(nn.Module):
-    def __init__(self, nkernels, nclasses):
+    KERNEL_SIZE = 5
+
+    def __init__(self, nkernels, nclasses, n_mut1=0, n_mut2=0):
         super(Model, self).__init__()
         self.nkernels = nkernels
         self.nclasses = nclasses
-        self.kernel_size = 5
+        self.mut1len = n_mut1  # number of kernels that are given type 1 mutation
+        self.ingenlen = nkernels-n_mut2  # Length of genome input
 
-        self.conv1 = nn.Conv2d(3, nkernels, kernel_size=self.kernel_size, padding=2, bias=False)
+        # Specify genome layer
+        if n_mut1:
+            self.genome_mut1 = nn.Conv2d(3, n_mut1, kernel_size=self.KERNEL_SIZE, padding=2, bias=False)
+        if n_mut2:
+            self.genome_mut2 = nn.Conv2d(3, n_mut2, kernel_size=self.KERNEL_SIZE, padding=2, bias=False)
+        self.genome_nomut = nn.Conv2d(3, nkernels-n_mut1-n_mut2, kernel_size=self.KERNEL_SIZE, padding=2, bias=False)
+
+        # Specify other layers
         self.pool = nn.MaxPool2d(kernel_size=2)
         self.conv2 = nn.Conv2d(nkernels, nkernels//2, kernel_size=5)
         self.gap = nn.AvgPool2d(12)
         self.fc = nn.Linear(nkernels//2, nclasses)
 
-
     def init_genome(self, data):
-        data = torch.stack(list(data))
-        self.conv1.weight = torch.nn.Parameter(data)
+        """
+        Initializes the first layer specified by a given genome, genome data input should be of length self.ingenlen
+        :param data: Genome data as torch tensor
+        :return: None
+        """
+        with torch.no_grad():
+            if data.shape[0] > self.ingenlen:
+                raise Exception("Don't try to give the model downs syndrome.")
+            else:
+                self.genome_mut1.weight = torch.nn.Parameter(data[:self.mut1len])
+                self.genome_nomut.weight = torch.nn.Parameter(data[self.mut1len:])
 
+    def gen_optimizer(self, lr, mut_lr1, mut_lr2):
+        """
+        Generates an Adam optimizer for the network where the non-mutating kernels are frozen, the type 1 mutating
+        kernels are given a reduced learning rate, and the type 2 mutating kernels are given a different specified lr.
+
+        :param lr: Default learning rate of the network
+        :param mut_lr1: Rate at which type 1 mutating kernels learn.
+        :param mut_lr2: Rate at which type 2 mutating kernels learn.
+        :return: Adam optimizer for this network.
+        """
+
+        self.genome_nomut.weight.requires_grad = False
+        other_params = [self.conv2.weight, self.conv2.bias, self.fc.weight, self.fc.bias]
+        return optim.Adam([{'params': self.genome_mut1.weight, 'lr': mut_lr1},
+                           {'params': self.genome_mut2.weight, 'lr': mut_lr2},
+                           {'params': other_params}], lr=lr)
 
     def get_genome(self):
-        return self.conv1.weight.data
-
+        return torch.cat((self.genome_mut1.weight.data, self.genome_mut2.weight.data, self.genome_nomut.weight.data), 0)
 
     def forward(self, x):
-        x = F.relu(self.conv1(x))
+        x = F.relu(torch.cat((self.genome_mut1(x), self.genome_mut2(x), self.genome_nomut(x)), 1))
         x = self.pool(x)
         x = F.relu(self.conv2(x))
         x = torch.squeeze(self.gap(x))
@@ -96,14 +130,14 @@ def evaluate_model(model, device, loader):
     Returns the current accuracy of a given model.
     """
     epoch_acc = 0
-    
+
     model.eval()
-    
+
     with torch.no_grad():
         for i, (x, y) in enumerate(loader):
             x = x.to(device)
             y = y.to(device)
-            
+
             fx = model(x)
 
             predictions = fx.max(1, keepdim=True)[1]
@@ -112,13 +146,13 @@ def evaluate_model(model, device, loader):
 
             #log the cumulative sum of the loss and acc
             epoch_acc += acc.item()
-    
+
     model_acc = epoch_acc / len(loader)
-  
+
     return model_acc
 
 
-def full_train(model, n_epochs, train_loader, test_loader, loss_func, optimizer, device, freeze): ## TODO - implement freezing of first layer
+def full_train(model, n_epochs, train_loader, test_loader, loss_func, optimizer, device): ## TODO - implement freezing of first layer
     """
     Train a given 'model' for 'n_epochs'
     """
@@ -138,15 +172,4 @@ def full_train(model, n_epochs, train_loader, test_loader, loss_func, optimizer,
         test_loss.append(sum(epoch_loss) / len(epoch_loss))
         test_acc.append(acc)
     return train_loss, test_loss, train_acc, test_acc
-
-
-def freeze_layer(model, freeze=True, invert=False):
-    """
-    If 'invert' is true, the model's first layer will flip between frozen and unfrozen.
-    Otherwise, freeze depending on 'freeze'
-    """
-    if invert:
-        model.conv1.weight.requires_grad = not model.conv1.weight.requires_grad
-    else:
-        model.conv1.weight.requires_grad = not freeze # did you know that '~' is retarded
 
