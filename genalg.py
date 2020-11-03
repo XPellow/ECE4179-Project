@@ -104,7 +104,7 @@ class CNNGenAlgSolver(ContinuousGenAlgSolver):
 
     def create_offspring(self, first_parent, sec_parent, crossover_pt, offspring_number):
         """
-        Creates an offspring from 2 parents. It uses the crossover point(s)
+        Creates an offspring from 2 parents. It uses the crossover point(s) ..
         to determine how to perform the crossover
         :param first_parent: first parent's chromosome
         :param sec_parent: second parent's chromosome
