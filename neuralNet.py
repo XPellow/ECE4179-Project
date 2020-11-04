@@ -37,6 +37,7 @@ class Model(nn.Module):
         self.nclasses = nclasses
         self.mut1len = n_mut1  # number of kernels that are given type 1 mutation
         self.mut2len = n_mut2  # number of kernels that are given type 2 mutation
+        self.nomutlen = nkernels - n_mut1 - n_mut2
         self.ingenlen = nkernels-n_mut2  # Length of genome input
 
         # Specify genome layer
@@ -44,7 +45,7 @@ class Model(nn.Module):
             self.genome_mut1 = nn.Conv2d(3, n_mut1, kernel_size=self.KERNEL_SIZE, padding=2, bias=False)
         if n_mut2:
             self.genome_mut2 = nn.Conv2d(3, n_mut2, kernel_size=self.KERNEL_SIZE, padding=2, bias=False)
-        self.genome_nomut = nn.Conv2d(3, nkernels-n_mut1-n_mut2, kernel_size=self.KERNEL_SIZE, padding=2, bias=False)
+        self.genome_nomut = nn.Conv2d(3, self.nomutlen, kernel_size=self.KERNEL_SIZE, padding=2, bias=False)
 
         # Specify other layers
         self.pool = nn.MaxPool2d(kernel_size=2)

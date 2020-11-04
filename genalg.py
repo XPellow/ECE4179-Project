@@ -27,7 +27,9 @@ class CNNGenAlgSolver:
         self.device = kwargs["device"]
         self.loss_func = kwargs["loss_function"]
         self.optimizerFunc = kwargs["optimizer"]
-        self.lr = kwargs["learning_rate"]
+        self.lr = kwargs["lr"]
+        self.lr_mut1 = kwargs["lr_mut1"]
+        self.lr_mut2 = kwargs["lr_mut2"]
         self.max_gen = kwargs["max_gen"]
         self.n_epochs = kwargs["n_epochs"]
         self.nkernels = kwargs["nkernels"]
@@ -62,7 +64,7 @@ class CNNGenAlgSolver:
         test_loader = self.test_loaders[idx]
         train_loader = self.train_loaders[idx]
 
-        optimizer = self.optimizerFunc(chromosome.parameters(), self.lr)
+        optimizer = chromosome.gen_optimizer(self.lr, self.lr_mut1, self.lr_mut2)
         train_loss, test_loss, train_acc, test_acc = full_train(
             model=chromosome, 
             n_epochs=self.n_epochs, 
@@ -152,8 +154,8 @@ class CNNGenAlgSolver:
             print("Generation: {}/{}".format(self.gen, self.max_gen))
 
             # Find the normalzied fitness of each model
-            print("Starting fitness calc")
-            print(datetime.now())
+            print(datetime.now(), end=": ")
+            print("Starting fitness calc\n")
             fitness = self.calculate_fitness(population)
             fitness /= sum(fitness) # Normalizes array
 

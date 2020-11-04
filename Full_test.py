@@ -30,32 +30,74 @@ def unpickle(file):
     return dict
 
 
-def plot_all(train_loss, test_loss, train_acc, test_acc):
+def plot_all(train_loss, test_loss, train_acc, test_acc, gen):
+    """
+    Used for plotting a single generation
+    """
     plt.figure(figsize = (12, 12))
 
     plt.subplot(2,2,1)
-    plt.plot(train_loss)
-    plt.title('Model Loss On Training Dataset Per Epoch')
+    plt.plot(train_loss[gen, :])
+    plt.title('Model Loss On Training Dataset Per Epoch. Generation={}'.format(gen))
     plt.xlabel('Epoch')
     plt.ylabel('Training data loss')
 
     plt.subplot(2,2,2)
-    plt.plot(test_loss)
-    plt.title('Model Loss On Testing Dataset Per Epoch')
+    plt.plot(test_loss[gen, :])
+    plt.title('Model Loss On Testing Dataset Per Epoch. Generation={}'.format(gen))
     plt.xlabel('Epoch')
     plt.ylabel('Testing data loss')
 
     plt.subplot(2,2,3)
-    plt.plot(train_acc)
-    plt.title('Model Accuracy On Training Dataset')
+    plt.plot(train_acc[gen, :])
+    plt.title('Model Accuracy On Training Dataset. Generation={}'.format(gen))
     plt.xlabel('Epoch')
     plt.ylabel('Training data Accuracy')
 
     plt.subplot(2,2,4)
-    plt.plot(test_acc)
+    plt.plot(test_acc[gen, :])
+    plt.title('Model Accuracy On Testing Dataset. Generation={}'.format(gen))
+    plt.xlabel('Epoch')
+    plt.ylabel('Testing data Accuracy')
+
+    plt.show()
+
+
+def plot_all_ontop(train_loss, test_loss, train_acc, test_acc, gen_idx):
+    """
+    Used for plotting multiple generations various graphics ontop of one another
+    """
+    legend = ["Generation {}".format(i) for i in gen_idx]
+
+    plt.figure(figsize = (12, 12))
+
+    plt.subplot(2,2,1)
+    plt.plot(train_loss[gen_idx, :].T)
+    plt.title('Model Loss On Training Dataset Per Epoch')
+    plt.xlabel('Epoch')
+    plt.ylabel('Training data loss')
+    plt.legend(legend)
+
+    plt.subplot(2,2,2)
+    plt.plot(test_loss[gen_idx, :].T)
+    plt.title('Model Loss On Testing Dataset Per Epoch')
+    plt.xlabel('Epoch')
+    plt.ylabel('Testing data loss')
+    plt.legend(legend)
+
+    plt.subplot(2,2,3)
+    plt.plot(train_acc[gen_idx, :].T)
+    plt.title('Model Accuracy On Training Dataset')
+    plt.xlabel('Epoch')
+    plt.ylabel('Training data Accuracy')
+    plt.legend(legend)
+
+    plt.subplot(2,2,4)
+    plt.plot(test_acc[gen_idx, :].T)
     plt.title('Model Accuracy On Testing Dataset')
     plt.xlabel('Epoch')
     plt.ylabel('Testing data Accuracy')
+    plt.legend(legend)
 
     plt.show()
 
@@ -93,9 +135,23 @@ legend = metadata[b'fine_label_names']
 train_data = unpickle('cifar-100-python/train_sort')
 test_data = unpickle('cifar-100-python/test_sort')
 
-# Setting up multi-class loaders
-nclasses = 2 # 4
+# User-chosen parameters
+
+testing = False # If true, use predefined paramters for a quick check shit works
+nclasses = 4
 nloaders = 50
+nkernels = 64
+n_epochs = 50
+pop_size = 12
+pool_size = 5
+max_gen = 10
+
+lr = 1e-3
+lr_mut1 = 1e-4
+lr_mut2 = 1e-5
+
+# Setting up multi-class loaders
+
 train_loaders = []
 test_loaders = []
 
@@ -115,17 +171,17 @@ test_loaders = np.array(test_loaders)
 # Initializing network parameters
 
 loss_func = nn.CrossEntropyLoss()
-lr = 1e-3
-n_epochs = 30
 optimizer = optim.Adam
-testing = True
+
+
+
 
 if testing:
     solver = CNNGenAlgSolver(
         model=Model,
-        pop_size=4, # population size (number of models)
+        pop_size=5, # population size (number of models)
         pool_size=2, # num of models chosen when creating the next generation
-        max_gen=3, # maximum number of generations
+        max_gen=2, # maximum number of generations
         mutation_rate=0.05, # mutation rate to apply to the population
         num_channels=3,
         train_loaders=train_loaders,
@@ -134,28 +190,32 @@ if testing:
         device=device,
         loss_function=loss_func,
         optimizer=optimizer,
-        learning_rate=lr,
-        n_epochs=n_epochs,
-        nkernels=16,
+        lr=lr,
+        lr_mut1=lr_mut1,
+        lr_mut2=lr_mut2,
+        n_epochs=5,
+        nkernels=4,
         nclasses=nclasses
     )
 else:
     solver = CNNGenAlgSolver(
         model=Model,
-        pop_size=20, # population size (number of models)
-        pool_size=10, # num of models chosen when creating the next generation
-        max_gen=20, # maximum number of generations
+        pop_size=pop_size, # population size (number of models)
+        pool_size=pool_size, # num of models chosen when creating the next generation
+        max_gen=max_gen, # maximum number of generations
         mutation_rate=0.05, # mutation rate to apply to the population
         num_channels=3,
-        kernel_size=5,
         train_loaders=train_loaders,
         test_loaders=test_loaders,
+        kernel_size=5,
         device=device,
         loss_function=loss_func,
         optimizer=optimizer,
-        learning_rate=lr,
+        lr=lr,
+        lr_mut1=lr_mut1,
+        lr_mut2=lr_mut2,
         n_epochs=n_epochs,
-        nkernels=64,
+        nkernels=nkernels,
         nclasses=nclasses
     )
 
@@ -167,5 +227,14 @@ ave_train_losses = np.average(solver.train_losses, axis=1)
 ave_test_losses = np.average(solver.test_losses, axis=1)
 ave_train_accs = np.average(solver.train_accs, axis=1)
 ave_test_accs = np.average(solver.test_accs, axis=1)
+print(solver.train_losses)
+print("\n\n\n\n\n")
+print(ave_train_losses)
+if testing:
+    plot_all_ontop(ave_train_losses, ave_test_losses, ave_train_accs, ave_test_accs, gen_idx=[0,1,2])
+else:
+    plot_all_ontop(ave_train_losses, ave_test_losses, ave_train_accs, ave_test_accs, gen_idx=range(max_gen+1))
 
-#plot_all(ave_train_losses, ave_test_losses, ave_train_accs, ave_test_accs)
+
+#plot_all(ave_train_losses, ave_test_losses, ave_train_accs, ave_test_accs, gen=5)
+#plot_all(ave_train_losses, ave_test_losses, ave_train_accs, ave_test_accs, gen=10)
