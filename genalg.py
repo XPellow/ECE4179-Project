@@ -117,7 +117,7 @@ class CNNGenAlgSolver:
 
         population = []
         for i in range(self.pop_size):
-            new_model = self.Model(self.nkernels, self.nclasses).to(self.device)
+            new_model = self.Model(self.nkernels, self.nclasses, n_mut1=self.nkernels-1).to(self.device)
             new_genome = np.random.choice(genes, size=self.nkernels, replace=False)
             new_genome = torch.stack(list(new_genome))
             new_model.init_genome(new_genome)

@@ -37,25 +37,25 @@ def plot_all(train_loss, test_loss, train_acc, test_acc, gen):
     plt.figure(figsize = (12, 12))
 
     plt.subplot(2,2,1)
-    plt.plot(train_loss[gen, :])
+    plt.plot(train_loss)
     plt.title('Model Loss On Training Dataset Per Epoch. Generation={}'.format(gen))
     plt.xlabel('Epoch')
     plt.ylabel('Training data loss')
 
     plt.subplot(2,2,2)
-    plt.plot(test_loss[gen, :])
+    plt.plot(test_loss)
     plt.title('Model Loss On Testing Dataset Per Epoch. Generation={}'.format(gen))
     plt.xlabel('Epoch')
     plt.ylabel('Testing data loss')
 
     plt.subplot(2,2,3)
-    plt.plot(train_acc[gen, :])
+    plt.plot(train_acc)
     plt.title('Model Accuracy On Training Dataset. Generation={}'.format(gen))
     plt.xlabel('Epoch')
     plt.ylabel('Training data Accuracy')
 
     plt.subplot(2,2,4)
-    plt.plot(test_acc[gen, :])
+    plt.plot(test_acc)
     plt.title('Model Accuracy On Testing Dataset. Generation={}'.format(gen))
     plt.xlabel('Epoch')
     plt.ylabel('Testing data Accuracy')
@@ -137,7 +137,7 @@ test_data = unpickle('cifar-100-python/test_sort')
 
 # User-chosen parameters
 
-testing = False # If true, use predefined paramters for a quick check shit works
+testing = False # If True, use predefined paramters for a quick check shit works
 nclasses = 4
 nloaders = 50
 nkernels = 64
@@ -147,7 +147,7 @@ pool_size = 5
 max_gen = 10
 
 lr = 1e-3
-lr_mut1 = 1e-4
+lr_mut1 = 1e-5
 lr_mut2 = 1e-5
 
 # Setting up multi-class loaders
@@ -173,15 +173,12 @@ test_loaders = np.array(test_loaders)
 loss_func = nn.CrossEntropyLoss()
 optimizer = optim.Adam
 
-
-
-
 if testing:
     solver = CNNGenAlgSolver(
         model=Model,
-        pop_size=5, # population size (number of models)
-        pool_size=2, # num of models chosen when creating the next generation
-        max_gen=2, # maximum number of generations
+        pop_size=6, # population size (number of models)
+        pool_size=3, # num of models chosen when creating the next generation
+        max_gen=3, # maximum number of generations
         mutation_rate=0.05, # mutation rate to apply to the population
         num_channels=3,
         train_loaders=train_loaders,
@@ -193,7 +190,7 @@ if testing:
         lr=lr,
         lr_mut1=lr_mut1,
         lr_mut2=lr_mut2,
-        n_epochs=5,
+        n_epochs=20,
         nkernels=4,
         nclasses=nclasses
     )
@@ -230,11 +227,18 @@ ave_test_accs = np.average(solver.test_accs, axis=1)
 print(solver.train_losses)
 print("\n\n\n\n\n")
 print(ave_train_losses)
+
 if testing:
     plot_all_ontop(ave_train_losses, ave_test_losses, ave_train_accs, ave_test_accs, gen_idx=[0,1,2])
 else:
     plot_all_ontop(ave_train_losses, ave_test_losses, ave_train_accs, ave_test_accs, gen_idx=range(max_gen+1))
 
+# Plot a specific network
+gen=2
+plot_all(solver.train_losses[gen][0], 
+         solver.test_losses[gen][0],
+         solver.train_accs[gen][0],
+         solver.test_accs[gen][0],
+         gen=gen)
 
-#plot_all(ave_train_losses, ave_test_losses, ave_train_accs, ave_test_accs, gen=5)
 #plot_all(ave_train_losses, ave_test_losses, ave_train_accs, ave_test_accs, gen=10)
